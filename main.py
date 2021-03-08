@@ -2,7 +2,6 @@ import time
 from flask import Flask, Response
 from deGiro_operator import attempt_trade_deGiro
 from threading import Thread
-# from multiprocessing import Process
 
 app = Flask(__name__)
 run_auto_trade = False
@@ -11,7 +10,7 @@ message = ''
 
 @app.route('/')
 def hello():
-    return 'Hello to the Flex Auto-Trading application!'
+    return 'Hello to the Auto-Trading Stocks application!'
 
 
 @app.route('/start')
@@ -33,7 +32,7 @@ def record_loop():
     while run_auto_trade:
         message = attempt_trade_deGiro()
         print(message)
-        time.sleep(60*2)
+        time.sleep(60*5)
 
 
 def run_process():

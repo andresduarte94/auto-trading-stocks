@@ -1,5 +1,4 @@
 import time
-import requests
 import degiroapi
 import numpy as np
 from degiroapi.order import Order

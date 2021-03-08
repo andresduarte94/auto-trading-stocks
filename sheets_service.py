@@ -2,7 +2,7 @@ from googleapiclient.discovery import build  # Added
 from google.oauth2 import service_account
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']  # Modified
-creds = service_account.Credentials.from_service_account_file('trading-bot-299323-2c57524dd20f.json', scopes=SCOPES)
+creds = service_account.Credentials.from_service_account_file('trading-bot-299323-9915eaa38b25.json', scopes=SCOPES)
 SAMPLE_SPREADSHEET_ID = '1rrDyKwaWU2Mb-MwRlMnZ0f8NdP_UVoXc9eG4x6dB5Yc'
 service = build('sheets', 'v4', credentials=creds)
 positions_sheet_id = '427440165'
