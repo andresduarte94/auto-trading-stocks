@@ -1,9 +1,21 @@
 from googleapiclient.discovery import build  # Added
 from google.oauth2 import service_account
+from google.cloud import secretmanager_v1beta1 as secretmanager
+
+project_id = 'trading-bot-299323'
+sheets_secret = 'auto-trading-sheets-id'
+service_account_secret = 'service-account-file-name'
+version = 1
+
+client = secretmanager.SecretManagerServiceClient()
+secret_path_1 = client.secret_verion_path(project_id, sheets_secret, version)
+secret_path_2 = client.secret_verion_path(project_id, service_account_secret, version)
+SPREADSHEET_ID = client.access_secret_version(secret_path_1).payload.data.decode('UTF-8')
+SERVICE_ACCOUNT_NAME = client.access_secret_version(secret_path_2).payload.data.decode('UTF-8')
+
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']  # Modified
-creds = service_account.Credentials.from_service_account_file('trading-bot-299323-9915eaa38b25.json', scopes=SCOPES)
-SAMPLE_SPREADSHEET_ID = '1rrDyKwaWU2Mb-MwRlMnZ0f8NdP_UVoXc9eG4x6dB5Yc'
+creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_NAME, scopes=SCOPES)
 service = build('sheets', 'v4', credentials=creds)
 positions_sheet_id = '427440165'
 
@@ -11,7 +23,7 @@ positions_sheet_id = '427440165'
 def getSheetValues(rangeParam):
     # Call the Sheets API
     sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
                                 range=rangeParam).execute()
     values = result.get('values', [])
     return values
@@ -20,7 +32,7 @@ def getSheetValues(rangeParam):
 def setSheetValues(rangeParam, valuesBody):
     # Call the Sheets API
     sheet = service.spreadsheets()
-    result = sheet.values().update(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+    result = sheet.values().update(spreadsheetId=SPREADSHEET_ID,
                                    range=rangeParam, body=valuesBody, valueInputOption='USER_ENTERED',
                                    responseValueRenderOption='FORMATTED_VALUE').execute()
 
@@ -50,6 +62,6 @@ def delete_positions_rows(rows):
                 }
             }
         ]
-        result = sheet.batchUpdate(spreadsheetId=SAMPLE_SPREADSHEET_ID, body={'requests': deleteRowRequest}).execute()
+        result = sheet.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={'requests': deleteRowRequest}).execute()
         rowsDeleted = rowsDeleted + 1
     print('All rows deleted')

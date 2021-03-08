@@ -3,13 +3,25 @@ import degiroapi
 import numpy as np
 from degiroapi.order import Order
 from datetime import datetime, timedelta
+from google.cloud import secretmanager_v1beta1 as secretmanager
 import sheets_service
+
+project_id = 'trading-bot-299323'
+username_secret = 'degiro-password'
+password_secret = 'service-account-file-name'
+version = 1
+
+client = secretmanager.SecretManagerServiceClient()
+secret_path_1 = client.secret_verion_path(project_id, username_secret, version)
+secret_path_2 = client.secret_verion_path(project_id, password_secret, version)
+USERNAME = client.access_secret_version(secret_path_1).payload.data.decode('UTF-8')
+PASSWORD = client.access_secret_version(secret_path_2).payload.data.decode('UTF-8')
 
 degiro = degiroapi.DeGiro()
 
 
 def attempt_trade_deGiro():
-    degiro.login("andresduarte94", "10139910.Ae")
+    degiro.login(USERNAME, PASSWORD)
     print('Starting new trade attempt')
     insert_new_positions()
     update_sheets_data()

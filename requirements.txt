@@ -17,3 +17,4 @@ google-auth-oauthlib==0.4.2
 googleapis-common-protos==1.52.0
 httplib2==0.18.1
 google~=3.0.0
+google-cloud-secret-manager==2.2.0
