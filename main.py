@@ -42,9 +42,5 @@ def run_process():
 
 
 if __name__ == '__main__':
-    '''
     app.run(host='127.0.0.1', port=8080, debug=True, use_reloader=False)
-    p = Process(target=record_loop)
-    p.start()
-    p.join()
-    '''
+

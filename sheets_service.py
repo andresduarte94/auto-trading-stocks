@@ -4,18 +4,16 @@ from google.cloud import secretmanager_v1beta1 as secretmanager
 
 project_id = 'trading-bot-299323'
 sheets_secret = 'auto-trading-sheets-id'
-service_account_secret = 'service-account-file-name'
-version = 1
+version_1 = 1
 
 client = secretmanager.SecretManagerServiceClient()
-secret_path_1 = client.secret_verion_path(project_id, sheets_secret, version)
-secret_path_2 = client.secret_verion_path(project_id, service_account_secret, version)
-SPREADSHEET_ID = client.access_secret_version(secret_path_1).payload.data.decode('UTF-8')
-SERVICE_ACCOUNT_NAME = client.access_secret_version(secret_path_2).payload.data.decode('UTF-8')
+secret_path_1 = client.secret_version_path(project_id, sheets_secret, version_1)
+response = client.access_secret_version(request={"name": secret_path_1})
+SPREADSHEET_ID = response.payload.data.decode('UTF-8')
 
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']  # Modified
-creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_NAME, scopes=SCOPES)
+creds = service_account.Credentials.from_service_account_file('trading-bot-299323-f6a8dbb0b2c3.json', scopes=SCOPES)
 service = build('sheets', 'v4', credentials=creds)
 positions_sheet_id = '427440165'
 
