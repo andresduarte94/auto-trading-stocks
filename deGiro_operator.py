@@ -3,6 +3,8 @@ import degiroapi
 import numpy as np
 from degiroapi.order import Order
 from datetime import datetime, timedelta
+
+from degiroapi.product import Product
 from google.cloud import secretmanager_v1beta1 as secretmanager
 import sheets_service
 
@@ -21,7 +23,12 @@ degiro = degiroapi.DeGiro()
 
 
 def attempt_trade_deGiro():
-    degiro.login(USERNAME, PASSWORD)
+    try:
+        degiro.login(USERNAME, PASSWORD)
+    except Exception as e:
+        print('Error while trying to login in De Giro')
+        print(e)
+        return
     print('Starting new trade attempt')
     insert_new_positions()
     update_sheets_data()
@@ -34,7 +41,12 @@ def attempt_trade_deGiro():
         close_order = row[10]
         order_changed = row[11]
         order_id = row[12]
-        stock_data = degiro.real_time_price(product_id, degiroapi.Interval.Type.One_Day)[0]['data']
+        try:
+            stock_data = degiro.real_time_price(product_id, degiroapi.Interval.Type.One_Day)[0]['data']
+        except Exception as e:
+            print('Error while trying to get last stock price for product ID: ' + product_id)
+            print(e)
+            continue
         current_price = stock_data['lastPrice']
         sl_trigger = abs(current_price - stop_loss) * 100 / current_price
         tp_trigger = abs(current_price - take_profit) * 100 / current_price
@@ -63,25 +75,40 @@ def create_sell_order(product_id, order_type, quantiy, price, close_order, order
     if order_id != 'n':
         if order_changed == 'y' or order_type != close_order:
             print(order_changed + ' ' + order_id + ' ' + close_order)
-            degiro.delete_order(order_id)
-            time.sleep(5)
+            try:
+                degiro.delete_order(order_id)
+                time.sleep(5)
+            except Exception as e:
+                print('Error while trying to delete order ID: ' + order_id)
+                print(e)
         else:
             print('No order change needed')
             return
     # Create sell order
-    if order_type == 'sl':
-        degiro.sellorder(Order.Type.STOPLOSS, product_id, 3, quantiy, None, price)
-    elif order_type == 'tp':
-        degiro.sellorder(Order.Type.LIMIT, product_id, 3, quantiy, price)
+    try:
+        if order_type == 'sl':
+            degiro.sellorder(Order.Type.STOPLOSS, product_id, 3, quantiy, None, price)
+            time.sleep(5)
+        elif order_type == 'tp':
+            degiro.sellorder(Order.Type.LIMIT, product_id, 3, quantiy, price)
+            time.sleep(5)
+    except Exception as e:
+        print('Error while trying to place sell order for product ID: ' + product_id)
+        print(e)
     print(order_type + ' order placed')
 
 
 def update_sheets_data():
     values = sheets_service.getSheetValues('positions!A2:K')
-    # Get portafolio data
-    portfolio = degiro.getdata(degiroapi.Data.Type.PORTFOLIO, True)
-    # Get orders data
-    orders = degiro.orders(datetime.now() - timedelta(days=30), datetime.now())
+    try:
+        # Get portafolio data
+        portfolio = degiro.getdata(degiroapi.Data.Type.PORTFOLIO, True)
+        # Get orders data
+        orders = degiro.orders(datetime.now() - timedelta(days=30), datetime.now())
+    except Exception as e:
+        print('Error while trying to get portafolio or orders data')
+        print(e)
+        return
     # Create array for positions table data (Add/Delete)
     data_size = sheets_service.get_last_row('positions!A1:D') - 1
     order_data = np.full((data_size, 4), 'n').tolist()
@@ -123,7 +150,12 @@ def update_sheets_data():
                 if order['isActive'] and order['buysell'] == 'S':
                     # Check if indx is in rows_to_delete, if it is then cancel order with order_id
                     if indx in rows_to_delete:
-                        degiro.delete_order(order['orderId'])
+                        try:
+                            degiro.delete_order(order['orderId'])
+                            time.sleep(5)
+                        except Exception as e:
+                            print('Error while trying to get delete sell order ID: ' + order['orderId'])
+                            print(e)
                     else:
                         # Fill orderId, tp, sl, price sheets data
                         order_data[indx][2] = order['orderId']
@@ -154,7 +186,12 @@ def update_sheets_data():
 def insert_new_positions():
     pending_orders = sheets_service.getSheetValues('pending_orders!B2:B')
     product_ids = sheets_service.getSheetValues('positions!B2:B')
-    portfolio = degiro.getdata(degiroapi.Data.Type.PORTFOLIO, True)
+    try:
+        portfolio = degiro.getdata(degiroapi.Data.Type.PORTFOLIO, True)
+    except Exception as e:
+        print('Error while trying to get portafolio data')
+        print(e)
+        return
     for portIndx, position in enumerate(portfolio):
         for indx, row in enumerate(pending_orders):
             sheets_product_id = row[0]
@@ -174,3 +211,54 @@ def insert_new_positions():
                 sheets_service.setSheetValues(new_position_range, new_position_values)
                 print(f"Pending order of row number {indx} has been inserted")
     print('New positions have been inserted')
+
+
+def get_stocks_info():
+    try:
+        degiro.login(USERNAME, PASSWORD)
+    except Exception as e:
+        print('Error while trying to login in De Giro')
+        print(e)
+        return
+    stocks = sheets_service.getSheetValues('risk_management!A2:A')
+    product_id_data = []
+    for item in stocks:
+        stock = item[0]
+        try:
+            products = degiro.search_products(stock)
+            product = Product(products[0])
+            if product.symbol == stock and product.currency == 'USD':
+                product_id_data.append([product.id])
+            else:
+                product_id_data.append(['Not found'])
+        except Exception as e:
+            print('Error while trying to get info for stock: ' + stock)
+            print(e)
+            product_id_data.append(['Exception'])
+
+    product_id_range = "risk_management!B2:B"
+    product_id_body = {'range': product_id_range, 'values': product_id_data}
+    sheets_service.setSheetValues(product_id_range, product_id_body)
+    degiro.logout()
+
+
+def place_buy_orders():
+    try:
+        degiro.login(USERNAME, PASSWORD)
+    except Exception as e:
+        print('Error while trying to login in De Giro')
+        print(e)
+        return
+    buy_data = sheets_service.getSheetValues('risk_management!B2:C')
+    entry_prices = sheets_service.getSheetValues('risk_management!F2:F')
+    for indx, row in enumerate(buy_data):
+        product_id = row[0]
+        quantity = row[1]
+        price_limit = entry_prices[indx][0]
+        try:
+            degiro.buyorder(Order.Type.LIMIT, product_id, 3, quantity, price_limit)
+            time.sleep(5)
+        except Exception as e:
+            print('Error while trying to place buy order for product ID: ' + product_id)
+            print(e)
+    degiro.logout()

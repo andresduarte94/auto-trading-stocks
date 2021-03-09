@@ -1,6 +1,8 @@
 import time
 from flask import Flask, Response
 from deGiro_operator import attempt_trade_deGiro
+from deGiro_operator import get_stocks_info
+from deGiro_operator import place_buy_orders
 from threading import Thread
 
 app = Flask(__name__)
@@ -25,6 +27,18 @@ def stop_auto_trade():
     global run_auto_trade
     run_auto_trade = False
     return "Application stopped"
+
+
+@app.route('/stocks_info')
+def stocks_info():
+    get_stocks_info()
+    return 'Product IDs have been updated'
+
+
+@app.route('/buy_orders')
+def buy_orders():
+    place_buy_orders()
+    return 'Buy orders have been placed'
 
 
 def record_loop():
