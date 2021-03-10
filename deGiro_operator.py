@@ -3,7 +3,6 @@ import degiroapi
 import numpy as np
 from degiroapi.order import Order
 from datetime import datetime, timedelta
-
 from degiroapi.product import Product
 from google.cloud import secretmanager_v1beta1 as secretmanager
 import sheets_service
