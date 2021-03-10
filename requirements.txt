@@ -18,3 +18,4 @@ googleapis-common-protos==1.52.0
 httplib2==0.18.1
 google~=3.0.0
 google-cloud-secret-manager==2.2.0
+ftx==1.0.2

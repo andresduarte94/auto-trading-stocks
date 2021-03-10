@@ -21,7 +21,7 @@ PASSWORD = client.access_secret_version(request={"name": secret_path_2}).payload
 degiro = degiroapi.DeGiro()
 
 
-def attempt_trade_deGiro():
+def attempt_trade_degiro():
     try:
         degiro.login(USERNAME, PASSWORD)
     except Exception as e:
@@ -43,7 +43,7 @@ def attempt_trade_deGiro():
         try:
             stock_data = degiro.real_time_price(product_id, degiroapi.Interval.Type.One_Day)[0]['data']
         except Exception as e:
-            print('Error while trying to get last stock price for product ID: ' + product_id)
+            print('Error while trying to get last stock price for product ID: ' + str(product_id))
             print(e)
             continue
         current_price = stock_data['lastPrice']
@@ -92,7 +92,7 @@ def create_sell_order(product_id, order_type, quantiy, price, close_order, order
             degiro.sellorder(Order.Type.LIMIT, product_id, 3, quantiy, price)
             time.sleep(5)
     except Exception as e:
-        print('Error while trying to place sell order for product ID: ' + product_id)
+        print('Error while trying to place sell order for product ID: ' + str(product_id))
         print(e)
     print(order_type + ' order placed')
 

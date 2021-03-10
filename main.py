@@ -1,8 +1,7 @@
 import time
 from flask import Flask, Response
-from deGiro_operator import attempt_trade_deGiro
-from deGiro_operator import get_stocks_info
-from deGiro_operator import place_buy_orders
+from degiro_operator import attempt_trade_degiro, get_stocks_info, place_buy_orders
+from ftx_operator import buy_sl_orders_ftx, place_tp_orders_ftx
 from threading import Thread
 
 app = Flask(__name__)
@@ -15,6 +14,7 @@ def hello():
     return 'Hello to the Auto-Trading Stocks application!'
 
 
+# Endpoints for De Giro Stocks trading
 @app.route('/start')
 def start_auto_trade():
     global run_auto_trade
@@ -44,7 +44,7 @@ def buy_orders():
 def record_loop():
     global run_auto_trade, message
     while run_auto_trade:
-        message = attempt_trade_deGiro()
+        message = attempt_trade_degiro()
         print(message)
         time.sleep(60*5)
 
@@ -53,6 +53,19 @@ def run_process():
     t = Thread(target=record_loop)
     t.start()
     return 'Processing... :' + message
+
+
+# Endpoints for FTX Crypto trading
+@app.route('/set_orders_ftx')
+def set_orders_ftx():
+    buy_sl_orders_ftx()
+    return 'Buy and SL orders have been placed'
+
+
+@app.route('/place_tp_ftx')
+def place_tp_ftx():
+    place_tp_orders_ftx()
+    return 'TP orders have been placed'
 
 
 if __name__ == '__main__':
