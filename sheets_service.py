@@ -14,7 +14,6 @@ SPREADSHEET_ID = response.payload.data.decode('UTF-8')
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 creds = service_account.Credentials.from_service_account_file('trading-bot-299323-f6a8dbb0b2c3.json', scopes=SCOPES)
 service = build('sheets', 'v4', credentials=creds)
-positions_sheet_id = '427440165'
 
 
 def getSheetValues(rangeParam):
@@ -46,7 +45,7 @@ def get_last_row(rangeParam):
     return last_row
 
 
-def delete_positions_rows(rows):
+def delete_positions_rows(rows, sheet_id, last_column):
     rowsDeleted = 0
     for row in rows:
         rowNumber = row - rowsDeleted
@@ -54,11 +53,11 @@ def delete_positions_rows(rows):
             {
                 'deleteRange': {
                     'range': {
-                        'sheetId': positions_sheet_id,
+                        'sheetId': sheet_id,
                         'startRowIndex': rowNumber,
                         'endRowIndex': rowNumber + 1,
                         'startColumnIndex': 0,
-                        'endColumnIndex': 14,
+                        'endColumnIndex': last_column,
                     },
                     'shiftDimension': 'ROWS',
                 }
@@ -71,4 +70,4 @@ def delete_positions_rows(rows):
             print('Error while trying to delete sheet rows. Row number: ' + rowNumber)
             print(e)
         rowsDeleted = rowsDeleted + 1
-    print('All rows deleted')
+    print('All rows deleted for sheet ID: ' + sheet_id)

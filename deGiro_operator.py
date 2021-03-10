@@ -178,7 +178,7 @@ def update_sheets_data():
     quantity_body = {'range': quantity_range, 'values': quantity_data}
     sheets_service.setSheetValues(quantity_range, quantity_body)
     # Delete rows with old positions, this must be the last sheet operation
-    sheets_service.delete_positions_rows(rows_to_delete)
+    sheets_service.delete_positions_rows(rows_to_delete, '427440165', 14)
     print('Sheets are updated')
 
 
@@ -191,6 +191,7 @@ def insert_new_positions():
         print('Error while trying to get portafolio data')
         print(e)
         return
+    rows_to_delete = []
     for portIndx, position in enumerate(portfolio):
         for indx, row in enumerate(pending_orders):
             sheets_product_id = row[0]
@@ -208,7 +209,11 @@ def insert_new_positions():
                 new_position_range = f"positions!A{position_row}:D{position_row}"
                 new_position_values = {'range': new_position_range, 'values': pending_order_data}
                 sheets_service.setSheetValues(new_position_range, new_position_values)
-                print(f"Pending order of row number {indx} has been inserted")
+                print(f"Pending order of row number {pending_order_row} has been inserted")
+                # Add row index to delete rows array
+                rows_to_delete.append(indx + 1)
+    # Delete rows with old pending orders
+    sheets_service.delete_positions_rows(rows_to_delete, '788011985', 11)
     print('New positions have been inserted')
 
 
