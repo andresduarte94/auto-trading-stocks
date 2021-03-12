@@ -1,7 +1,7 @@
 import time
 from flask import Flask, Response
 from degiro_operator import attempt_trade_degiro, get_stocks_info, place_buy_orders
-from ftx_operator import buy_sl_orders_ftx, place_tp_orders_ftx
+from ftx_operator import buy_sl_orders_ftx, place_tp_orders_ftx, modify_sl_tp_orders_ftx
 from threading import Thread
 
 app = Flask(__name__)
@@ -66,6 +66,12 @@ def set_orders_ftx():
 def place_tp_ftx():
     place_tp_orders_ftx()
     return 'TP orders have been placed'
+
+
+@app.route('/modify_orders_ftx')
+def modify_orders_ftx():
+    modify_sl_tp_orders_ftx()
+    return 'SL and TP orders have been modified'
 
 
 if __name__ == '__main__':

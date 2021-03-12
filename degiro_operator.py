@@ -10,11 +10,10 @@ import sheets_service
 project_id = 'trading-bot-299323'
 username_secret = 'degiro-username'
 password_secret = 'degiro-password'
-version = 1
 
 client = secretmanager.SecretManagerServiceClient()
-secret_path_1 = client.secret_version_path(project_id, username_secret, version)
-secret_path_2 = client.secret_version_path(project_id, password_secret, version)
+secret_path_1 = client.secret_version_path(project_id, username_secret, 1)
+secret_path_2 = client.secret_version_path(project_id, password_secret, 2)
 USERNAME = client.access_secret_version(request={"name": secret_path_1}).payload.data.decode('UTF-8')
 PASSWORD = client.access_secret_version(request={"name": secret_path_2}).payload.data.decode('UTF-8')
 

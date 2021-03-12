@@ -16,10 +16,10 @@ creds = service_account.Credentials.from_service_account_file('trading-bot-29932
 service = build('sheets', 'v4', credentials=creds)
 
 
-def getSheetValues(rangeParam):
+def getSheetValues(rangeParam, spreadsheet_id: str = SPREADSHEET_ID):
     try:
         sheet = service.spreadsheets()
-        result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=rangeParam).execute()
+        result = sheet.values().get(spreadsheetId=spreadsheet_id, range=rangeParam).execute()
         values = result.get('values', [])
     except Exception as e:
         print('Error while trying to set sheet values')
@@ -28,10 +28,10 @@ def getSheetValues(rangeParam):
     return values
 
 
-def setSheetValues(rangeParam, valuesBody):
+def setSheetValues(rangeParam, valuesBody, spreadsheet_id: str = SPREADSHEET_ID):
     try:
         sheet = service.spreadsheets()
-        sheet.values().update(spreadsheetId=SPREADSHEET_ID,
+        sheet.values().update(spreadsheetId=spreadsheet_id,
                               range=rangeParam, body=valuesBody, valueInputOption='USER_ENTERED',
                               responseValueRenderOption='FORMATTED_VALUE').execute()
     except Exception as e:
@@ -39,13 +39,13 @@ def setSheetValues(rangeParam, valuesBody):
         print(e)
 
 
-def get_last_row(rangeParam):
-    values = getSheetValues(rangeParam)
+def get_last_row(rangeParam, spreadsheet_id: str = SPREADSHEET_ID):
+    values = getSheetValues(rangeParam, spreadsheet_id)
     last_row = len(values)
     return last_row
 
 
-def delete_positions_rows(rows, sheet_id, last_column):
+def delete_positions_rows(rows, sheet_id, last_column, spreadsheet_id: str = SPREADSHEET_ID):
     rowsDeleted = 0
     for row in rows:
         rowNumber = row - rowsDeleted
@@ -65,7 +65,7 @@ def delete_positions_rows(rows, sheet_id, last_column):
         ]
         try:
             sheet = service.spreadsheets()
-            sheet.batchUpdate(spreadsheetId=SPREADSHEET_ID, body={'requests': deleteRowRequest}).execute()
+            sheet.batchUpdate(spreadsheetId=spreadsheet_id, body={'requests': deleteRowRequest}).execute()
         except Exception as e:
             print('Error while trying to delete sheet rows. Row number: ' + rowNumber)
             print(e)
