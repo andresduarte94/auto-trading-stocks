@@ -1,7 +1,7 @@
 import time
 from flask import Flask, Response
 from degiro_operator import attempt_trade_degiro, get_stocks_info, place_buy_orders
-from ftx_operator import buy_sl_orders_ftx, place_tp_orders_ftx, modify_sl_tp_orders_ftx
+import ftx_operator
 from threading import Thread
 
 app = Flask(__name__)
@@ -52,26 +52,44 @@ def record_loop():
 def run_process():
     t = Thread(target=record_loop)
     t.start()
-    return 'Processing... :' + message
+    return 'Processing... :'
 
 
 # Endpoints for FTX Crypto trading
 @app.route('/set_orders_ftx')
 def set_orders_ftx():
-    buy_sl_orders_ftx()
+    ftx_operator.buy_sl_orders_ftx()
     return 'Buy and SL orders have been placed'
 
 
 @app.route('/place_tp_ftx')
 def place_tp_ftx():
-    place_tp_orders_ftx()
+    ftx_operator.place_tp_orders_ftx()
     return 'TP orders have been placed'
 
 
 @app.route('/modify_orders_ftx')
 def modify_orders_ftx():
-    modify_sl_tp_orders_ftx()
+    ftx_operator.modify_sl_tp_orders_ftx()
     return 'SL and TP orders have been modified'
+
+
+@app.route('/update_history_ftx')
+def update_history_ftx():
+    ftx_operator.update_closed_trades_ftx()
+    return 'Positions history have been updated'
+
+
+@app.route('/update_limit_orders_ftx')
+def update_limit_orders_ftx():
+    ftx_operator.update_active_trades_ftx()
+    return 'Limit orders have been updated'
+
+
+@app.route('/test')
+def test_main():
+    ftx_operator.test_ftx()
+    return 'test'
 
 
 if __name__ == '__main__':
