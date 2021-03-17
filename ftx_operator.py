@@ -33,15 +33,18 @@ def buy_sl_orders_ftx():
         quantity = float(row[1])
         entry_price = float(row[2])
         sl_price = float(row[3])
+        limit_order_id = 'n'
+        # Set market or limit buy order
         if buy_type == 'market':
-            orderbook = ftx_client.get_orderbook(pair, 1)
-            ask_price = float(orderbook['asks'][0][0])
-            buy_order = ftx_client.place_order(pair, 'buy', ask_price, quantity, type='market')
-            entry_price = buy_order['price']
+            orderbook = ftx_client.get_orderbook(pair, 3)
+            ask_price = float(orderbook['asks'][2][0])
+            ftx_client.place_order(pair, 'buy', ask_price, quantity, type='market')
+            entry_price = ask_price
             print('Buy market made for ' + pair)
         elif buy_type == 'limit':
             buy_order = ftx_client.place_order(pair, 'buy', entry_price, quantity, type='limit')
             entry_price = buy_order['price']
+            limit_order_id = buy_order['id']
             print('Buy limit set for ' + pair)
         # Set SL order for each trade
         sl_order = ftx_client.place_conditional_order(pair, 'sell', quantity, type='stop', trigger_price=sl_price,
@@ -53,11 +56,12 @@ def buy_sl_orders_ftx():
         size_col = f"=D{position_row}*C{position_row}"
         profit_col = f"=ABS(F{position_row}-D{position_row})*G{position_row}*0.99/D{position_row}"
         loss_col = f"=(E{position_row}-D{position_row})*G{position_row}*1.01/D{position_row}"
-        r_col = f"=H{position_row}/{losses[indx][0]}"
+        r_col = f"=ABS(H{position_row}/{losses[indx][0]})"
         market_row_data = [
             [ticker[indx][0], is_active, quantity, entry_price, sl_order['triggerPrice'], row[4], size_col, profit_col,
-             loss_col, r_col, sl_order['id'], 'n']]
-        new_position_range = f"positions!A{position_row}:L{position_row}"
+             loss_col, r_col, sl_order['id'], 'n', limit_order_id
+             ]]
+        new_position_range = f"positions!A{position_row}:M{position_row}"
         new_position_body = {'range': new_position_range, 'values': market_row_data}
         sheets_service.setSheetValues(new_position_range, new_position_body, spreadsheet_id=SPREADSHEET_ID)
         rows_to_delete.append(indx + 1)
@@ -74,6 +78,7 @@ def place_tp_orders_ftx():
         tp_price = float(row[4])
         is_active = row[0]
         tp_order_id = tp_order_ids[indx][0]
+        # Place TP order if needed
         if is_active == 'yes' and tp_order_id == 'n':
             tp_order = ftx_client.place_order(pair, 'sell', tp_price, quantity, type='limit', reduce_only=True)
             tp_order_row = indx + 2
@@ -92,36 +97,72 @@ def place_tp_orders_ftx():
 
 def modify_sl_tp_orders_ftx():
     ticker = sheets_service.getSheetValues('positions!A2:A', spreadsheet_id=SPREADSHEET_ID)
-    order_ids = sheets_service.getSheetValues('positions!K2:L', spreadsheet_id=SPREADSHEET_ID)
+    order_ids = sheets_service.getSheetValues('positions!K2:M', spreadsheet_id=SPREADSHEET_ID)
     values = sheets_service.getSheetValues('positions!B2:F', spreadsheet_id=SPREADSHEET_ID)
     for indx, row in enumerate(values):
         pair = f"{ticker[indx][0]}-PERP"
-        sl_order_id = order_ids[indx][0]
-        tp_order_id = order_ids[indx][1]
         is_active = row[0]
         quantity = float(row[1])
-        entry_new_price = float(row[2])
+        print(quantity)
         sl_new_price = float(row[3])
-        tp_new_price = float(row[4])
-        sl_price = ftx_client.get_conditional_orders(pair)[0]['triggerPrice']
-        tp_price = ftx_client.get_open_orders(pair)[0]['price']
+        tp_new_price = tp_price = float(row[4])
+        entry_new_price = limit_price = float(row[2])
+        sl_order_id = order_ids[indx][0]
+        tp_order_id = order_ids[indx][1]
+        limit_order_id = order_ids[indx][2]
+        # Get orders' price and ID
+        sl_order = ftx_client.get_conditional_orders(pair)[0]
+        sl_price = sl_order['triggerPrice']
+        limit_orders = ftx_client.get_open_orders(pair)
+        for order in limit_orders:
+            if order['side'] == 'sell':
+                tp_price = order['price']
+            if order['side'] == 'buy':
+                limit_price = order['price']
+        # Modify orders' price and quantity if needed
         order_row = indx + 2
         if sl_order_id != 'n' and sl_new_price != sl_price:
-            sl_order_id_2 = ftx_client.modify_order(existing_order_id=sl_order_id, price=sl_new_price)['id']
-            sl_order_id_3 = ftx_client.modify_order(existing_order_id=sl_order_id_2, size=quantity)['id']
-            sl_order_data = [[sl_order_id_3]]
+            # Modify SL order
+            sl_order = ftx_client.modify_order(existing_order_id=sl_order_id, price=sl_new_price)
+            # Set SL order ID
+            sl_order_data = [[sl_order['id']]]
             sl_order_range = f"positions!K{order_row}"
             sl_order_body = {'range': sl_order_range, 'values': sl_order_data}
             sheets_service.setSheetValues(sl_order_range, sl_order_body, spreadsheet_id=SPREADSHEET_ID)
-            print('SL modified for pair: ' + pair)
+            # Set SL order price
+            sl_order_data = [[sl_order['price']]]
+            sl_order_range = f"positions!E{order_row}"
+            sl_order_body = {'range': sl_order_range, 'values': sl_order_data}
+            sheets_service.setSheetValues(sl_order_range, sl_order_body, spreadsheet_id=SPREADSHEET_ID)
+            print('SL order modified for pair: ' + pair)
         if tp_order_id != 'n' and tp_new_price != tp_price:
-            tp_order_id_2 = ftx_client.modify_order(existing_order_id=tp_order_id, price=tp_new_price)['id']
-            tp_order_id_3 = ftx_client.modify_order(existing_order_id=tp_order_id_2, size=quantity)['id']
-            tp_order_data = [[tp_order_id_3]]
+            # Modify TP order
+            tp_order = ftx_client.modify_order(existing_order_id=tp_order_id, price=tp_new_price)
+            # Set TP order ID
+            tp_order_data = [[tp_order['id']]]
             tp_order_range = f"positions!L{order_row}"
             tp_order_body = {'range': tp_order_range, 'values': tp_order_data}
             sheets_service.setSheetValues(tp_order_range, tp_order_body, spreadsheet_id=SPREADSHEET_ID)
-            print('TP modified for pair: ' + pair)
+            # Set TP order price
+            tp_order_data = [[tp_order['price']]]
+            tp_order_range = f"positions!F{order_row}"
+            tp_order_body = {'range': tp_order_range, 'values': tp_order_data}
+            sheets_service.setSheetValues(tp_order_range, tp_order_body, spreadsheet_id=SPREADSHEET_ID)
+            print('TP order modified for pair: ' + pair)
+        if is_active == 'no' and entry_new_price != limit_price:
+            # Modify limit order
+            limit_order = ftx_client.modify_order(existing_order_id=limit_order_id, price=entry_new_price)
+            # Set limit order ID
+            limit_order_data = [[limit_order['id']]]
+            limit_order_range = f"positions!M{order_row}"
+            limit_order_body = {'range': limit_order_range, 'values': limit_order_data}
+            sheets_service.setSheetValues(limit_order_range, limit_order_body, spreadsheet_id=SPREADSHEET_ID)
+            # Set limit order price
+            limit_order_data = [[limit_order['price']]]
+            limit_order_range = f"positions!D{order_row}"
+            limit_order_body = {'range': limit_order_range, 'values': limit_order_data}
+            sheets_service.setSheetValues(limit_order_range, limit_order_body, spreadsheet_id=SPREADSHEET_ID)
+            print('Limit order modified for pair: ' + pair)
 
 
 def update_closed_trades_ftx():
@@ -150,4 +191,5 @@ def update_active_trades_ftx():
 
 
 def test_ftx():
-    print(ftx_client.get_open_orders('ETH-PERP'))
+    # print(ftx_client.place_order('ETH-PERP', 'buy', ask_price, quantity, type='market'))
+    print(ftx_client.get_conditional_orders('UNI-PERP'))

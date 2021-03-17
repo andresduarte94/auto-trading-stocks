@@ -17,26 +17,18 @@ service = build('sheets', 'v4', credentials=creds)
 
 
 def getSheetValues(rangeParam, spreadsheet_id: str = SPREADSHEET_ID):
-    try:
-        sheet = service.spreadsheets()
-        result = sheet.values().get(spreadsheetId=spreadsheet_id, range=rangeParam).execute()
-        values = result.get('values', [])
-    except Exception as e:
-        print('Error while trying to set sheet values')
-        print(e)
-        values = []
+    sheet = service.spreadsheets()
+    result = sheet.values().get(spreadsheetId=spreadsheet_id, range=rangeParam).execute()
+    values = result.get('values', [])
+    values = []
     return values
 
 
 def setSheetValues(rangeParam, valuesBody, spreadsheet_id: str = SPREADSHEET_ID):
-    try:
-        sheet = service.spreadsheets()
-        sheet.values().update(spreadsheetId=spreadsheet_id,
-                              range=rangeParam, body=valuesBody, valueInputOption='USER_ENTERED',
-                              responseValueRenderOption='FORMATTED_VALUE').execute()
-    except Exception as e:
-        print('Error while trying to set sheet values')
-        print(e)
+    sheet = service.spreadsheets()
+    sheet.values().update(spreadsheetId=spreadsheet_id,
+                          range=rangeParam, body=valuesBody, valueInputOption='USER_ENTERED',
+                          responseValueRenderOption='FORMATTED_VALUE').execute()
 
 
 def get_last_row(rangeParam, spreadsheet_id: str = SPREADSHEET_ID):
@@ -63,11 +55,7 @@ def delete_positions_rows(rows, sheet_id, last_column, spreadsheet_id: str = SPR
                 }
             }
         ]
-        try:
-            sheet = service.spreadsheets()
-            sheet.batchUpdate(spreadsheetId=spreadsheet_id, body={'requests': deleteRowRequest}).execute()
-        except Exception as e:
-            print('Error while trying to delete sheet rows. Row number: ' + rowNumber)
-            print(e)
+        sheet = service.spreadsheets()
+        sheet.batchUpdate(spreadsheetId=spreadsheet_id, body={'requests': deleteRowRequest}).execute()
         rowsDeleted = rowsDeleted + 1
     print('All rows deleted for sheet ID: ' + sheet_id)

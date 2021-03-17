@@ -21,12 +21,7 @@ degiro = degiroapi.DeGiro()
 
 
 def attempt_trade_degiro():
-    try:
-        degiro.login(USERNAME, PASSWORD)
-    except Exception as e:
-        print('Error while trying to login in De Giro')
-        print(e)
-        return
+    login_de_giro()
     print('Starting new trade attempt')
     insert_new_positions()
     update_sheets_data()
@@ -63,7 +58,6 @@ def attempt_trade_degiro():
             create_sell_order(product_id, 'tp', quantity, take_profit, close_order, order_changed, order_id)
 
         print(" --------------------- ")
-
     degiro.logout()
     return 'Process finished at ' + datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
 
@@ -217,12 +211,7 @@ def insert_new_positions():
 
 
 def get_stocks_info():
-    try:
-        degiro.login(USERNAME, PASSWORD)
-    except Exception as e:
-        print('Error while trying to login in De Giro')
-        print(e)
-        return
+    login_de_giro()
     stocks = sheets_service.getSheetValues('risk_management!A2:A')
     product_id_data = []
     for item in stocks:
@@ -246,12 +235,7 @@ def get_stocks_info():
 
 
 def place_buy_orders():
-    try:
-        degiro.login(USERNAME, PASSWORD)
-    except Exception as e:
-        print('Error while trying to login in De Giro')
-        print(e)
-        return
+    login_de_giro()
     buy_data = sheets_service.getSheetValues('risk_management!B2:C')
     entry_prices = sheets_service.getSheetValues('risk_management!F2:F')
     for indx, row in enumerate(buy_data):
@@ -265,3 +249,12 @@ def place_buy_orders():
             print('Error while trying to place buy order for product ID: ' + product_id)
             print(e)
     degiro.logout()
+
+
+def login_de_giro():
+    try:
+        degiro.login(USERNAME, PASSWORD)
+    except Exception as e:
+        print('Error while trying to login in De Giro')
+        print(e)
+        return

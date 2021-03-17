@@ -80,12 +80,6 @@ def update_history_ftx():
     return 'Positions history have been updated'
 
 
-@app.route('/update_limit_orders_ftx')
-def update_limit_orders_ftx():
-    ftx_operator.update_active_trades_ftx()
-    return 'Limit orders have been updated'
-
-
 @app.route('/test')
 def test_main():
     ftx_operator.test_ftx()
