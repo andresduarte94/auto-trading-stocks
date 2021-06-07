@@ -1,1 +1,11 @@
 runtime: python39
+entrypoint: gunicorn -b :8080 -w 1 main:app
+
+automatic_scaling:
+  target_cpu_utilization: 0.85
+  min_instances: 1
+  max_instances: 7
+  min_pending_latency: 30ms
+  max_pending_latency: automatic
+  max_concurrent_requests: 3
+

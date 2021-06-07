@@ -21,12 +21,12 @@ degiro = degiroapi.DeGiro()
 
 
 def attempt_trade_degiro():
-    login_de_giro()
     print('Starting new trade attempt')
+    login_de_giro()
     insert_new_positions()
     update_sheets_data()
     values = sheets_service.getSheetValues('positions!A2:N')
-    for row in values:
+    for indx, row in enumerate(values):
         stop_loss = float(row[2])
         take_profit = float(row[3])
         quantity = int(row[4])
@@ -41,8 +41,8 @@ def attempt_trade_degiro():
             print(e)
             continue
         current_price = stock_data['lastPrice']
-        sl_trigger = abs(current_price - stop_loss) * 100 / current_price
-        tp_trigger = abs(current_price - take_profit) * 100 / current_price
+        sl_trigger = (current_price - stop_loss) * 100 / current_price
+        tp_trigger = (take_profit - current_price) * 100 / current_price
         print(row[0])
         print(current_price)
         print(stop_loss)
@@ -50,13 +50,21 @@ def attempt_trade_degiro():
         print(" ")
         print(sl_trigger)
         print(tp_trigger)
-        if sl_trigger < 7:
+        if 15 > sl_trigger > 0:
             print('sl trigger')
-            create_sell_order(product_id, 'sl', quantity, stop_loss, close_order, order_changed, order_id)
-        elif tp_trigger < 7:
+            create_sell_order(product_id, 'SL', quantity, stop_loss, close_order, order_changed, order_id)
+        elif 15 > tp_trigger > 0:
             print('tp trigger')
-            create_sell_order(product_id, 'tp', quantity, take_profit, close_order, order_changed, order_id)
-
+            create_sell_order(product_id, 'TP', quantity, take_profit, close_order, order_changed, order_id)
+        elif tp_trigger < 0 or sl_trigger < 0:
+            print('Sold at market order, due to SL or TP breached')
+            degiro.sellorder(Order.Type.MARKET, product_id, 3, quantity)
+            market_order = 'TP' if tp_trigger < 0 else 'SL'
+            market_order_data = [[market_order]]
+            row_number = indx + 2
+            market_order_range = f"positions!K{row_number}"
+            market_order_values = {'range': market_order_range, 'values': market_order_data}
+            sheets_service.setSheetValues(market_order_range, market_order_values)
         print(" --------------------- ")
     degiro.logout()
     return 'Process finished at ' + datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
@@ -78,10 +86,10 @@ def create_sell_order(product_id, order_type, quantiy, price, close_order, order
             return
     # Create sell order
     try:
-        if order_type == 'sl':
+        if order_type == 'SL':
             degiro.sellorder(Order.Type.STOPLOSS, product_id, 3, quantiy, None, price)
             time.sleep(5)
-        elif order_type == 'tp':
+        elif order_type == 'TP':
             degiro.sellorder(Order.Type.LIMIT, product_id, 3, quantiy, price)
             time.sleep(5)
     except Exception as e:
@@ -154,12 +162,12 @@ def update_sheets_data():
                         # Fill orderId, tp, sl, price sheets data
                         order_data[indx][2] = order['orderId']
                         if order['orderTypeId'] == Order.Type.LIMIT:
-                            order_data[indx][0] = 'tp'
+                            order_data[indx][0] = 'TP'
                             order_data[indx][3] = order['price']
                             if tp_sheet != order['price']:
                                 order_data[indx][1] = 'y'
                         if order['orderTypeId'] == Order.Type.STOPLOSS:
-                            order_data[indx][0] = 'sl'
+                            order_data[indx][0] = 'SL'
                             order_data[indx][3] = order['stopPrice']
                             if sl_sheet != order['stopPrice']:
                                 order_data[indx][1] = 'y'

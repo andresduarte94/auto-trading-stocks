@@ -1,6 +1,8 @@
 # import time
 # import numpy as np
 # from datetime import datetime, timedelta
+import json
+import requests
 import datetime
 import sheets_service
 from google.cloud import secretmanager_v1beta1 as secretmanager
@@ -50,6 +52,7 @@ def buy_sl_orders_ftx():
         sl_order = ftx_client.place_conditional_order(pair, 'sell', quantity, type='stop', trigger_price=sl_price,
                                                       reduce_only=True)
         print('SL set for ' + pair)
+        print(limit_order_id)
         # Move row from risk to position sheet and delete rows from risk_management
         position_row = sheets_service.get_last_row('positions!A1:B', spreadsheet_id=SPREADSHEET_ID) + 1
         is_active = 'no' if buy_type == 'limit' else 'yes'
@@ -103,7 +106,7 @@ def modify_sl_tp_orders_ftx():
         pair = f"{ticker[indx][0]}-PERP"
         is_active = row[0]
         quantity = float(row[1])
-        print(quantity)
+        print(pair)
         sl_new_price = float(row[3])
         tp_new_price = tp_price = float(row[4])
         entry_new_price = limit_price = float(row[2])
@@ -121,6 +124,7 @@ def modify_sl_tp_orders_ftx():
                 limit_price = order['price']
         # Modify orders' price and quantity if needed
         order_row = indx + 2
+        '''
         if sl_order_id != 'n' and sl_new_price != sl_price:
             # Modify SL order
             sl_order = ftx_client.modify_order(existing_order_id=sl_order_id, price=sl_new_price)
@@ -135,6 +139,7 @@ def modify_sl_tp_orders_ftx():
             sl_order_body = {'range': sl_order_range, 'values': sl_order_data}
             sheets_service.setSheetValues(sl_order_range, sl_order_body, spreadsheet_id=SPREADSHEET_ID)
             print('SL order modified for pair: ' + pair)
+        '''
         if tp_order_id != 'n' and tp_new_price != tp_price:
             # Modify TP order
             tp_order = ftx_client.modify_order(existing_order_id=tp_order_id, price=tp_new_price)
