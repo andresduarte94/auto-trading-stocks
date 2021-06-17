@@ -3,6 +3,8 @@ from flask import Flask, Response
 from degiro_operator import attempt_trade_degiro, get_stocks_info, place_buy_orders
 import ftx_operator
 from threading import Thread
+# from memory_profiler import profile
+
 
 app = Flask(__name__)
 run_auto_trade = False
@@ -14,7 +16,7 @@ def hello():
     return 'Hello to the Auto-Trading Stocks application!'
 
 
-# Endpoints for De Giro Stocks trading
+# Endpoints for De Giro Stocks trading @profile
 @app.route('/start')
 def start_auto_trade():
     global run_auto_trade
@@ -87,5 +89,6 @@ def test_main():
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8080, debug=True, use_reloader=False)
+    # app.run(host='127.0.0.1', port=8080, debug=True, use_reloader=False)
+    start_auto_trade()
 

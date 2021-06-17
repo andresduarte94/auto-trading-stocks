@@ -40,8 +40,12 @@ def get_last_row(rangeParam, spreadsheet_id: str = SPREADSHEET_ID):
 
 def delete_positions_rows(rows, sheet_id, last_column, spreadsheet_id: str = SPREADSHEET_ID):
     rowsDeleted = 0
+    '''
     for row in rows:
         rowNumber = row - rowsDeleted
+        print('row: ' + str(row))
+        print('rowNumber: ' + str(rowNumber))
+        print('rowsDeleted: ' + str(rowsDeleted))
         deleteRowRequest = [
             {
                 'deleteRange': {
@@ -60,4 +64,5 @@ def delete_positions_rows(rows, sheet_id, last_column, spreadsheet_id: str = SPR
         sheet.batchUpdate(spreadsheetId=spreadsheet_id, body={'requests': deleteRowRequest}).execute()
         time.sleep(1)
         rowsDeleted = rowsDeleted + 1
+    '''
     print('All rows deleted for sheet ID: ' + sheet_id)

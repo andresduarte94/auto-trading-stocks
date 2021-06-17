@@ -7,6 +7,7 @@ from degiroapi.product import Product
 from google.cloud import secretmanager_v1beta1 as secretmanager
 import sheets_service
 
+
 project_id = 'trading-bot-299323'
 username_secret = 'degiro-username'
 password_secret = 'degiro-password'
