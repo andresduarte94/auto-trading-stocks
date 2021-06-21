@@ -1,6 +1,7 @@
 import time
 from flask import Flask, Response
-from degiro_operator import attempt_trade_degiro, get_stocks_info, place_buy_orders
+from degiro_operator import attempt_trade_degiro, get_stocks_info, place_buy_orders, update_trailing_order_data, \
+    update_current_PL
 import ftx_operator
 from threading import Thread
 # from memory_profiler import profile
@@ -41,6 +42,18 @@ def stocks_info():
 def buy_orders():
     place_buy_orders()
     return 'Buy orders have been placed'
+
+
+@app.route('/update_current_PL')
+def update_current_price_PL():
+    update_current_PL()
+    return 'Current P/L have been updated'
+
+
+@app.route('/update_trailing_orders')
+def update_trailing_orders():
+    update_trailing_order_data()
+    return 'Trailing orders have been updated'
 
 
 def record_loop():
@@ -90,5 +103,7 @@ def test_main():
 
 if __name__ == '__main__':
     # app.run(host='127.0.0.1', port=8080, debug=True, use_reloader=False)
+    # attempt_trade_degiro()
     start_auto_trade()
+    #update_trailing_orders()
 
