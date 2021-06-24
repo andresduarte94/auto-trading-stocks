@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 from degiroapi.product import Product
 from google.cloud import secretmanager_v1beta1 as secretmanager
 import sheets_service
+import pandas as pd
+import yfinance as yf
+from yahoofinancials import YahooFinancials
 
 project_id = 'trading-bot-299323'
 username_secret = 'degiro-username'
@@ -25,6 +28,8 @@ def attempt_trade_degiro():
     login_de_giro()
     insert_new_positions()
     update_sheets_data()
+    update_current_PL_degiro()
+    update_trailing_price()
     values = sheets_service.getSheetValues('positions!A2:O')
     for indx, row in enumerate(values):
         trailing_price = float(row[14])
@@ -77,7 +82,7 @@ def create_sell_order(product_id, order_type, quantiy, price, close_order, order
             print(order_changed + ' ' + order_id + ' ' + close_order)
             try:
                 degiro.delete_order(order_id)
-                time.sleep(5)
+                time.sleep(2)
             except Exception as e:
                 print('Error while trying to delete order ID: ' + order_id)
                 print(e)
@@ -88,10 +93,10 @@ def create_sell_order(product_id, order_type, quantiy, price, close_order, order
     try:
         if order_type == 'SL':
             degiro.sellorder(Order.Type.STOPLOSS, product_id, 3, quantiy, None, price)
-            time.sleep(5)
+            time.sleep(2)
         elif order_type == 'TP':
             degiro.sellorder(Order.Type.LIMIT, product_id, 3, quantiy, price)
-            time.sleep(5)
+            time.sleep(2)
     except Exception as e:
         print('Error while trying to place sell order for product ID: ' + str(product_id))
         print(e)
@@ -113,7 +118,6 @@ def update_sheets_data():
     data_size = sheets_service.get_last_row('positions!A1:D') - 1
     quantity_data = np.full((data_size, 6), 'n').tolist()
     order_data = np.full((data_size, 4), 'n').tolist()
-    trailing_data = np.full((data_size, 3), 'error').tolist()
     rows_to_delete = []
     for indx, row in enumerate(values):
         sheets_product_id = row[1]
@@ -155,7 +159,7 @@ def update_sheets_data():
                     if indx in rows_to_delete:
                         try:
                             degiro.delete_order(order['orderId'])
-                            time.sleep(5)
+                            time.sleep(2)
                         except Exception as e:
                             print('Error while trying to get delete sell order ID: ' + order['orderId'])
                             print(e)
@@ -182,7 +186,7 @@ def update_sheets_data():
     order_body = {'range': order_range, 'values': order_data}
     sheets_service.setSheetValues(order_range, order_body)
     # Delete rows with old positions, this must be the last sheet operation
-    sheets_service.delete_positions_rows(rows_to_delete, '427440165', 14)
+    sheets_service.delete_positions_rows(rows_to_delete, '427440165', 18)
     print('Sheets are updated')
 
 
@@ -264,29 +268,22 @@ def place_buy_orders():
         price_limit = entry_prices[indx][0]
         try:
             degiro.buyorder(Order.Type.LIMIT, product_id, 3, quantity, price_limit)
-            time.sleep(5)
+            time.sleep(2)
         except Exception as e:
             print('Error while trying to place buy order for product ID: ' + product_id)
             print(e)
     degiro.logout()
 
 
-def update_current_PL():
+def update_current_PL_degiro():
     login_de_giro()
     product_ids = sheets_service.getSheetValues('positions!B2:B')
     current_PL_data = []
-    try:
-        portfolio = degiro.getdata(degiroapi.Data.Type.PORTFOLIO, True)
-    except Exception as e:
-        print('Error while trying to get portafolio data')
-        print(e)
-        return
-    for portIndx, position in enumerate(portfolio):
-        for indx, row in enumerate(product_ids):
-            row_number = indx + 2
-            product_id = row[0]
-            if position['id'] == product_id:
-                current_PL_data.append([f"=({position['price']}-G{row_number})*F{row_number}/G{row_number}"])
+    for indx, row in enumerate(product_ids):
+        row_number = indx + 2
+        product_id = row[0]
+        current_price = degiro.real_time_price(product_id, degiroapi.Interval.Type.One_Day)[0]['data']['lastPrice']
+        current_PL_data.append([f"=({current_price}-G{row_number})*F{row_number}/G{row_number}"])
     current_PL_range = "positions!Q2:Q"
     current_PL_body = {'range': current_PL_range, 'values': current_PL_data}
     sheets_service.setSheetValues(current_PL_range, current_PL_body)
@@ -313,6 +310,32 @@ def update_trailing_order_data():
     order_changed_range = "positions!L2:L"
     order_changed_body = {'range': order_changed_range, 'values': order_changed_data}
     sheets_service.setSheetValues(order_changed_range, order_changed_body)
+
+
+def update_trailing_price():
+    login_de_giro()
+    trailing_active_data = sheets_service.getSheetValues('positions!R2:R')
+    trailing_prices_sheet = sheets_service.getSheetValues('positions!O2:O')
+    tickers = sheets_service.getSheetValues('positions!A2:A')
+    for indx, row in enumerate(trailing_active_data):
+        if len(row) > 0:
+            trailing_active = row[0]
+            ticker = tickers[indx][0]
+            if trailing_active == 'y':
+                trailing_price_sheet = trailing_prices_sheet[indx][0]
+                position_row = indx + 2
+                today = datetime.today()
+                trailing_date = today - timedelta(days=3)
+                stock_price_data = yf.download(ticker,
+                                               start=trailing_date.strftime('%Y-%m-%d'),
+                                               end=today.strftime('%Y-%m-%d'),
+                                               progress=False)
+                trailing_price = '{:.2f}'.format(stock_price_data['Low'][0])
+                if trailing_price != trailing_price_sheet:
+                    trailing_price_data = [[trailing_price]]
+                    trailing_price_range = f"positions!O{position_row}"
+                    trailing_price_values = {'range': trailing_price_range, 'values': trailing_price_data}
+                    sheets_service.setSheetValues(trailing_price_range, trailing_price_values)
 
 
 def login_de_giro():
