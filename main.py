@@ -1,11 +1,11 @@
 import time
 from flask import Flask, Response
 from degiro_operator import attempt_trade_degiro, get_stocks_info, place_buy_orders, update_trailing_order_data, \
-    update_current_PL_degiro, update_trailing_price
+    update_current_PL_degiro
 import ftx_operator
 from threading import Thread
 # from memory_profiler import profile
-
+from interactive_broker_operator import trigger_orders_ib
 
 app = Flask(__name__)
 run_auto_trade = False
@@ -104,8 +104,10 @@ def test_main():
 if __name__ == '__main__':
     # app.run(host='127.0.0.1', port=8080, debug=True, use_reloader=False)
     # attempt_trade_degiro()
-    start_auto_trade()
+    # start_auto_trade()
     # update_current_PL()
     # update_trailing_orders()
     # update_trailing_price()
+    # test_main()
+    trigger_orders_ib()
 

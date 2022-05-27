@@ -68,8 +68,7 @@ def attempt_trade_degiro():
             market_order_data = [[market_order]]
             row_number = indx + 2
             market_order_range = f"positions!K{row_number}"
-            market_order_values = {'range': market_order_range, 'values': market_order_data}
-            sheets_service.setSheetValues(market_order_range, market_order_values)
+            sheets_service.setSheetValues(market_order_range, market_order_data)
         print(" --------------------- ")
     degiro.logout()
     return 'Process finished at ' + datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
@@ -115,7 +114,7 @@ def update_sheets_data():
         print(e)
         return
     # Create array for positions table data (Add/Delete)
-    data_size = sheets_service.get_last_row('positions!A1:D') - 1
+    data_size = sheets_service.get_last_row('positions!A1:A') - 1
     quantity_data = np.full((data_size, 6), 'n').tolist()
     order_data = np.full((data_size, 4), 'n').tolist()
     rows_to_delete = []
@@ -142,14 +141,13 @@ def update_sheets_data():
                 loss = row[15]
                 p_l = profit if close_order == 'TP' else loss
                 # Set closed position values to positions_history table
-                position_history_row = sheets_service.get_last_row('positions_history!A1:B') + 1
+                position_history_row = sheets_service.get_last_row('positions_history!A1:A') + 1
                 history_range = f"positions_history!A{position_history_row}:L{position_history_row}"
                 history_row = row[:10]
                 history_row.append(p_l)
                 history_row.append(datetime.today().strftime('%Y-%m-%d'))
                 history_data = [history_row]
-                history_values = {'range': history_range, 'values': history_data}
-                sheets_service.setSheetValues(history_range, history_values)
+                sheets_service.setSheetValues(history_range, history_data)
                 # Add row index to delete rows array
                 rows_to_delete.append(indx + 1)
         for order in orders:
@@ -179,12 +177,10 @@ def update_sheets_data():
                     break
     # Set quantity, size and entry_price values
     quantity_range = 'positions!E2:J'
-    quantity_body = {'range': quantity_range, 'values': quantity_data}
-    sheets_service.setSheetValues(quantity_range, quantity_body)
+    sheets_service.setSheetValues(quantity_range, quantity_data)
     # Set orders information into sheet
     order_range = 'positions!K2:N'
-    order_body = {'range': order_range, 'values': order_data}
-    sheets_service.setSheetValues(order_range, order_body)
+    sheets_service.setSheetValues(order_range, order_data)
     # Delete rows with old positions, this must be the last sheet operation
     sheets_service.delete_positions_rows(rows_to_delete, '427440165', 18)
     print('Sheets are updated')
@@ -193,13 +189,17 @@ def update_sheets_data():
 def insert_new_positions():
     pending_orders = sheets_service.getSheetValues('pending_orders!B2:B')
     product_ids = sheets_service.getSheetValues('positions!B2:B')
+    position_row = sheets_service.get_last_row('positions!A1:A') + 1
+    current_position_row = position_row
+    insert_trades_data = []
+    trailing_trades_data = []
+    rows_to_delete = []
     try:
         portfolio = degiro.getdata(degiroapi.Data.Type.PORTFOLIO, True)
     except Exception as e:
         print('Error while trying to get portafolio data')
         print(e)
         return
-    rows_to_delete = []
     for portIndx, position in enumerate(portfolio):
         for indx, row in enumerate(pending_orders):
             sheets_product_id = row[0]
@@ -210,25 +210,23 @@ def insert_new_positions():
                     pending_order_values = sheets_service.getSheetValues(
                         f"pending_orders!A{pending_order_row}:H{pending_order_row}")
                     # Construct data array ticker, product_id, SL and TP
-                    pending_order_data = [
+                    insert_trades_data.append(
                         [pending_order_values[0][0], pending_order_values[0][1], pending_order_values[0][6],
-                         pending_order_values[0][7]]]
-                    # Set values on position table
-                    position_row = sheets_service.get_last_row('positions!A1:B') + 1
-                    new_position_range = f"positions!A{position_row}:D{position_row}"
-                    new_position_values = {'range': new_position_range, 'values': pending_order_data}
-                    sheets_service.setSheetValues(new_position_range, new_position_values)
-                    print(f"Pending order of row number {pending_order_row} has been inserted")
+                         pending_order_values[0][7]])
                     # Fill trailing and current P/L data
-                    trailing_data = [
+                    trailing_trades_data.append(
                         [pending_order_values[0][6],
-                         f"=(O{position_row}-G{position_row})*F{position_row}/G{position_row}"]]
-                    # Set trailing and current P/L information
-                    trailing_range = f"positions!O{position_row}:P{position_row}"
-                    trailing_body = {'range': trailing_range, 'values': trailing_data}
-                    sheets_service.setSheetValues(trailing_range, trailing_body)
-                    # Add row index to delete rows array
+                         f"=(O{current_position_row}-G{current_position_row})*F{current_position_row}/G{current_position_row}"])
+                    # Add row index to delete rows
                     rows_to_delete.append(indx + 1)
+                    # Update position_row counter
+                    current_position_row += 1
+    # Set values on position table
+    insert_trades_range = f"positions!A{position_row}:D"
+    sheets_service.setSheetValues(insert_trades_range, insert_trades_data)
+    # Set trailing and current P/L information
+    trailing_trades_range = f"positions!O{position_row}:P"
+    sheets_service.setSheetValues(trailing_trades_range, trailing_trades_data)
     # Delete rows with old pending orders
     sheets_service.delete_positions_rows(rows_to_delete, '788011985', 11)
     print('New positions have been inserted')
@@ -251,27 +249,34 @@ def get_stocks_info():
             print('Error while trying to get info for stock: ' + stock)
             print(e)
             product_id_data.append(['Exception'])
-
     product_id_range = "risk_management!B2:B"
-    product_id_body = {'range': product_id_range, 'values': product_id_data}
-    sheets_service.setSheetValues(product_id_range, product_id_body)
+    sheets_service.setSheetValues(product_id_range, product_id_data)
     degiro.logout()
 
 
 def place_buy_orders():
     login_de_giro()
-    buy_data = sheets_service.getSheetValues('risk_management!B2:C')
-    entry_prices = sheets_service.getSheetValues('risk_management!F2:F')
+    buy_data = sheets_service.getSheetValues('risk_management!A2:K')
+    new_oder_data = []
+    rows_to_delete = []
     for indx, row in enumerate(buy_data):
-        product_id = row[0]
-        quantity = row[1]
-        price_limit = entry_prices[indx][0]
+        product_id = row[1]
+        quantity = row[2]
+        price_limit = row[5]
         try:
             degiro.buyorder(Order.Type.LIMIT, product_id, 3, quantity, price_limit)
             time.sleep(2)
+            # Add row index to delete rows array, but avoid first one
+            if indx > 0:
+                rows_to_delete.append(indx + 1)
         except Exception as e:
             print('Error while trying to place buy order for product ID: ' + product_id)
             print(e)
+        new_oder_data.append(row)
+    new_oder_range = "pending_orders!A2:K"
+    sheets_service.setSheetValues(new_oder_range, new_oder_data)
+    # Delete rows in risk_management but the fist one for template usage
+    sheets_service.delete_positions_rows(rows_to_delete, '495711425', 11)
     degiro.logout()
 
 
@@ -285,8 +290,7 @@ def update_current_PL_degiro():
         current_price = degiro.real_time_price(product_id, degiroapi.Interval.Type.One_Day)[0]['data']['lastPrice']
         current_PL_data.append([f"=({current_price}-G{row_number})*F{row_number}/G{row_number}"])
     current_PL_range = "positions!Q2:Q"
-    current_PL_body = {'range': current_PL_range, 'values': current_PL_data}
-    sheets_service.setSheetValues(current_PL_range, current_PL_body)
+    sheets_service.setSheetValues(current_PL_range, current_PL_data)
 
 
 def update_trailing_order_data():
@@ -308,8 +312,7 @@ def update_trailing_order_data():
             time.sleep(2)
     order_changed_data = np.full((len(product_ids), 1), 'n').tolist()
     order_changed_range = "positions!L2:L"
-    order_changed_body = {'range': order_changed_range, 'values': order_changed_data}
-    sheets_service.setSheetValues(order_changed_range, order_changed_body)
+    sheets_service.setSheetValues(order_changed_range, order_changed_data)
 
 
 def update_trailing_price():
@@ -334,8 +337,7 @@ def update_trailing_price():
                 if trailing_price != trailing_price_sheet:
                     trailing_price_data = [[trailing_price]]
                     trailing_price_range = f"positions!O{position_row}"
-                    trailing_price_values = {'range': trailing_price_range, 'values': trailing_price_data}
-                    sheets_service.setSheetValues(trailing_price_range, trailing_price_values)
+                    sheets_service.setSheetValues(trailing_price_range, trailing_price_data)
 
 
 def login_de_giro():

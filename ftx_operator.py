@@ -24,17 +24,19 @@ SPREADSHEET_ID = '1RLqJnfIM2Xjxi0oNw6r1diuGHmR_Lv46eYzjxuEDm4c'
 
 
 def buy_sl_orders_ftx():
-    ticker = sheets_service.getSheetValues('risk_management!A2:A', spreadsheet_id=SPREADSHEET_ID)
-    values = sheets_service.getSheetValues('risk_management!B2:F', spreadsheet_id=SPREADSHEET_ID)
-    losses = sheets_service.getSheetValues('risk_management!J2:J', spreadsheet_id=SPREADSHEET_ID)
+    values = sheets_service.getSheetValues('risk_management!A2:L', spreadsheet_id=SPREADSHEET_ID)
     rows_to_delete = []
     for indx, row in enumerate(values):
-        pair = f"{ticker[indx][0]}-PERP"
+        ticker = row[0]
+        pair = f"{ticker}/USD"
         print(pair)
-        buy_type = row[0]
-        quantity = float(row[1])
-        entry_price = float(row[2])
-        sl_price = float(row[3])
+        buy_type = row[1]
+        print(buy_type)
+        quantity = float(row[2])
+        entry_price = float(row[3])
+        sl_price = float(row[4])
+        loss = row[9]
+        exchange = row[11]
         limit_order_id = 'n'
         # Set market or limit buy order
         if buy_type == 'market':
@@ -49,8 +51,7 @@ def buy_sl_orders_ftx():
             limit_order_id = buy_order['id']
             print('Buy limit set for ' + pair)
         # Set SL order for each trade
-        sl_order = ftx_client.place_conditional_order(pair, 'sell', quantity, type='stop', trigger_price=sl_price,
-                                                      reduce_only=True)
+        sl_order = ftx_client.place_conditional_order(pair, 'sell', quantity, type='stop', trigger_price=sl_price)
         print('SL set for ' + pair)
         print(limit_order_id)
         # Move row from risk to position sheet and delete rows from risk_management
@@ -59,16 +60,14 @@ def buy_sl_orders_ftx():
         size_col = f"=D{position_row}*C{position_row}"
         profit_col = f"=ABS(F{position_row}-D{position_row})*G{position_row}*0.99/D{position_row}"
         loss_col = f"=(E{position_row}-D{position_row})*G{position_row}*1.01/D{position_row}"
-        r_col = f"=ABS(H{position_row}/{losses[indx][0]})"
+        r_col = f"=ABS(H{position_row}/{loss})"
         market_row_data = [
-            [ticker[indx][0], is_active, quantity, entry_price, sl_order['triggerPrice'], row[4], size_col, profit_col,
-             loss_col, r_col, sl_order['id'], 'n', limit_order_id
-             ]]
-        new_position_range = f"positions!A{position_row}:M{position_row}"
-        new_position_body = {'range': new_position_range, 'values': market_row_data}
-        sheets_service.setSheetValues(new_position_range, new_position_body, spreadsheet_id=SPREADSHEET_ID)
+            [ticker, is_active, quantity, entry_price, sl_order['triggerPrice'], row[5], size_col, profit_col,
+             loss_col, r_col, sl_order['id'], 'n', limit_order_id, exchange]]
+        new_position_range = f"positions!A{position_row}:N{position_row}"
+        sheets_service.setSheetValues(new_position_range, market_row_data, spreadsheet_id=SPREADSHEET_ID)
         rows_to_delete.append(indx + 1)
-    sheets_service.delete_positions_rows(rows_to_delete, '495711425', 11, spreadsheet_id=SPREADSHEET_ID)
+    sheets_service.delete_positions_rows(rows_to_delete, '495711425', 12, spreadsheet_id=SPREADSHEET_ID)
 
 
 def place_tp_orders_ftx():
@@ -76,7 +75,7 @@ def place_tp_orders_ftx():
     values = sheets_service.getSheetValues('positions!B2:F', spreadsheet_id=SPREADSHEET_ID)
     tp_order_ids = sheets_service.getSheetValues('positions!L2:L', spreadsheet_id=SPREADSHEET_ID)
     for indx, row in enumerate(values):
-        pair = f"{ticker[indx][0]}-PERP"
+        pair = f"{ticker[indx][0]}/USD"
         quantity = float(row[1])
         tp_price = float(row[4])
         is_active = row[0]
@@ -88,13 +87,11 @@ def place_tp_orders_ftx():
             # Set TP order price
             tp_price_data = [[tp_order['price']]]
             tp_price_range = f"positions!F{tp_order_row}"
-            tp_price_body = {'range': tp_price_range, 'values': tp_price_data}
-            sheets_service.setSheetValues(tp_price_range, tp_price_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(tp_price_range, tp_price_data, spreadsheet_id=SPREADSHEET_ID)
             # Set TP order ID
             tp_order_data = [[tp_order['id']]]
             tp_order_range = f"positions!L{tp_order_row}"
-            tp_order_body = {'range': tp_order_range, 'values': tp_order_data}
-            sheets_service.setSheetValues(tp_order_range, tp_order_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(tp_order_range, tp_order_data, spreadsheet_id=SPREADSHEET_ID)
             print('TP set for ' + pair)
 
 
@@ -103,7 +100,7 @@ def modify_sl_tp_orders_ftx():
     order_ids = sheets_service.getSheetValues('positions!K2:M', spreadsheet_id=SPREADSHEET_ID)
     values = sheets_service.getSheetValues('positions!B2:F', spreadsheet_id=SPREADSHEET_ID)
     for indx, row in enumerate(values):
-        pair = f"{ticker[indx][0]}-PERP"
+        pair = f"{ticker[indx][0]}/USD"
         is_active = row[0]
         quantity = float(row[1])
         print(pair)
@@ -131,13 +128,11 @@ def modify_sl_tp_orders_ftx():
             # Set SL order ID
             sl_order_data = [[sl_order['id']]]
             sl_order_range = f"positions!K{order_row}"
-            sl_order_body = {'range': sl_order_range, 'values': sl_order_data}
-            sheets_service.setSheetValues(sl_order_range, sl_order_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(sl_order_range, sl_order_data, spreadsheet_id=SPREADSHEET_ID)
             # Set SL order price
             sl_order_data = [[sl_order['price']]]
             sl_order_range = f"positions!E{order_row}"
-            sl_order_body = {'range': sl_order_range, 'values': sl_order_data}
-            sheets_service.setSheetValues(sl_order_range, sl_order_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(sl_order_range, sl_order_data, spreadsheet_id=SPREADSHEET_ID)
             print('SL order modified for pair: ' + pair)
         '''
         if tp_order_id != 'n' and tp_new_price != tp_price:
@@ -146,13 +141,11 @@ def modify_sl_tp_orders_ftx():
             # Set TP order ID
             tp_order_data = [[tp_order['id']]]
             tp_order_range = f"positions!L{order_row}"
-            tp_order_body = {'range': tp_order_range, 'values': tp_order_data}
-            sheets_service.setSheetValues(tp_order_range, tp_order_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(tp_order_range, tp_order_data, spreadsheet_id=SPREADSHEET_ID)
             # Set TP order price
             tp_order_data = [[tp_order['price']]]
             tp_order_range = f"positions!F{order_row}"
-            tp_order_body = {'range': tp_order_range, 'values': tp_order_data}
-            sheets_service.setSheetValues(tp_order_range, tp_order_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(tp_order_range, tp_order_data, spreadsheet_id=SPREADSHEET_ID)
             print('TP order modified for pair: ' + pair)
         if is_active == 'no' and entry_new_price != limit_price:
             # Modify limit order
@@ -160,13 +153,11 @@ def modify_sl_tp_orders_ftx():
             # Set limit order ID
             limit_order_data = [[limit_order['id']]]
             limit_order_range = f"positions!M{order_row}"
-            limit_order_body = {'range': limit_order_range, 'values': limit_order_data}
-            sheets_service.setSheetValues(limit_order_range, limit_order_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(limit_order_range, limit_order_data, spreadsheet_id=SPREADSHEET_ID)
             # Set limit order price
             limit_order_data = [[limit_order['price']]]
             limit_order_range = f"positions!D{order_row}"
-            limit_order_body = {'range': limit_order_range, 'values': limit_order_data}
-            sheets_service.setSheetValues(limit_order_range, limit_order_body, spreadsheet_id=SPREADSHEET_ID)
+            sheets_service.setSheetValues(limit_order_range, limit_order_data, spreadsheet_id=SPREADSHEET_ID)
             print('Limit order modified for pair: ' + pair)
 
 
@@ -175,7 +166,7 @@ def update_closed_trades_ftx():
     order_ids = sheets_service.getSheetValues('positions!K2:L', spreadsheet_id=SPREADSHEET_ID)
     start_date = (datetime.datetime.now() - datetime.timedelta(days=7)).timestamp()
     for indx, row in enumerate(order_ids):
-        pair = f"{ticker[indx][0]}-PERP"
+        pair = f"{ticker[indx][0]}/USD"
         sl_order_id = row[0]
         tp_order_id = row[1]
         sl_last_order_id = str(ftx_client.get_conditional_order_history(pair, 'sell', type='stop', order_type='market',
@@ -196,5 +187,6 @@ def update_active_trades_ftx():
 
 
 def test_ftx():
-    # print(ftx_client.place_order('ETH-PERP', 'buy', ask_price, quantity, type='market'))
-    print(ftx_client.get_conditional_orders('UNI-PERP'))
+    # print(ftx_client.place_order('ETH/USD', 'buy', 1000, 0.01, type='limit'))
+    # print(ftx_client.get_conditional_orders('UNI/USD'))
+    buy_sl_orders_ftx()
